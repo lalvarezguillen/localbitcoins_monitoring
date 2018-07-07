@@ -14,7 +14,8 @@ defmodule LbtcMonitoring do
   """
   def startSearch(currency, keywords) do
     url = "https://localbitcoins.com/sell-bitcoins-online/#{currency}/.json"
-    getOffers(url, [], currency, keywords)
+    lower_kws = Enum.map(keywords, fn k -> String.downcase(k) end)
+    getOffers(url, [], currency, lower_kws)
   end
 
   def getOffers(url, acc, currency, keywords) do
@@ -39,6 +40,9 @@ defmodule LbtcMonitoring do
   end
 
   def checkIfInteresting(offer, keywords) do
-    Enum.any?(keywords, fn k -> offer["data"]["msg"] =~ k or offer["data"]["bank_name"] =~ k end)
+    Enum.any?(keywords, fn k ->
+      String.downcase(offer["data"]["msg"]) =~ k or
+        String.downcase(offer["data"]["bank_name"]) =~ k
+    end)
   end
 end
