@@ -12,25 +12,24 @@ defmodule LbtcMonitoring do
       :world
 
   """
-
-  @currency "VEF"
-  @keywords ["bvc", "bvdc", "vdc", "venezolano"]
-
-  def startSearch() do
-    url = "https://localbitcoins.com/sell-bitcoins-online/#{@currency}/.json"
-    getOffers(url, [])
+  def startSearch(currency, keywords) do
+    url = "https://localbitcoins.com/sell-bitcoins-online/#{currency}/.json"
+    getOffers(url, [], currency, keywords)
   end
 
-  def getOffers(url, acc) do
+  def getOffers(url, acc, currency, keywords) do
     IO.puts(url)
     resp = HTTPotion.get(url)
-    [partialOffers, next] = parseResponse(resp.body)
-    acc = acc ++ partialOffers
 
-    if next do
-      getOffers(next, acc)
-    else
-      Enum.filter(acc, fn o -> checkIfInteresting(o) end)
+    if resp.status_code == 200 do
+      [partialOffers, next] = parseResponse(resp.body)
+      acc = acc ++ partialOffers
+
+      if next do
+        getOffers(next, acc, currency, keywords)
+      else
+        Enum.filter(acc, fn o -> checkIfInteresting(o, keywords) end)
+      end
     end
   end
 
@@ -39,7 +38,7 @@ defmodule LbtcMonitoring do
     [resp["data"]["ad_list"], resp["pagination"]["next"]]
   end
 
-  def checkIfInteresting(offer) do
-    Enum.any?(@keywords, fn k -> offer["data"]["msg"] =~ k or offer["data"]["bank_name"] =~ k end)
+  def checkIfInteresting(offer, keywords) do
+    Enum.any?(keywords, fn k -> offer["data"]["msg"] =~ k or offer["data"]["bank_name"] =~ k end)
   end
 end
