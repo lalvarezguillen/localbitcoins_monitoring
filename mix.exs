@@ -7,7 +7,8 @@ defmodule LbtcMonitoring.MixProject do
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      escript: escript()
     ]
   end
 
@@ -29,5 +30,9 @@ defmodule LbtcMonitoring.MixProject do
       {:jason, "~> 1.1"}
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
     ]
+  end
+
+  defp escript do
+    [main_module: LbtcMonitoring.CLI]
   end
 end

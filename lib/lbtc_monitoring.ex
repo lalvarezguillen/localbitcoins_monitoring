@@ -46,3 +46,31 @@ defmodule LbtcMonitoring do
     end)
   end
 end
+
+defmodule LbtcMonitoring.CLI do
+  def main(args) do
+    cleanArgs = Enum.map(args, fn elem -> cleanArg(elem) end)
+    IO.puts(cleanArgs)
+
+    parsedArgs =
+      OptionParser.parse(
+        cleanArgs,
+        strict: [currency: :string]
+      )
+
+    {[currency: curr], keywords, _} = parsedArgs
+    IO.puts(curr)
+    Enum.map(keywords, fn elem -> IO.puts(elem) end)
+    searchLbtc(curr, keywords)
+  end
+
+  defp cleanArg(arg) do
+    String.trim(arg)
+    |> String.downcase()
+  end
+
+  defp searchLbtc(currency, keywords) do
+    LbtcMonitoring.startSearch(currency, keywords)
+    |> IO.puts()
+  end
+end

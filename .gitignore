@@ -24,4 +24,5 @@ lbtc_monitoring-*.tar
 
 .elixir_ls
 .vscode
+lbtc_monitoring
 
