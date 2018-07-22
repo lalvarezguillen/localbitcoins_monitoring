@@ -31,7 +31,9 @@ func main() {
 		}
 		fmt.Println("Currency: " + currency)
 		fmt.Println(fmt.Sprintf("Keywords: %v", keywords))
-		return gatherBuyers(currency, keywords)
+		m := NewMonitor()
+		_, err := m.GatherBuyers(currency, keywords)
+		return err
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -39,37 +41,18 @@ func main() {
 	}
 }
 
-type AdData struct {
-	Message   string `json:"msg"`
-	BankName  string `json:"bank_name"`
-	Price     string `json:"temp_price"`
-	MinAmount string `json:"min_amount"`
-	MaxAmount string `json:"max_amount"`
-	Profile   struct {
-		Username string `json:"username"`
-	} `json:"profile"`
+// Monitor contains methods to filter Localbitcoins' ads based on Currency and Keywords
+type Monitor struct {
+	HTTPClient *http.Client
 }
 
-type BuyAd struct {
-	Data    AdData `json:"data"`
-	Actions struct {
-		URL string `json:"public_view"`
-	} `json:"actions"`
-}
-
-type Pagination struct {
-	Next string `json:"next"`
-}
-
-type LBTCResponse struct {
-	Data struct {
-		Ads []BuyAd `json:"ad_list"`
-	} `json:"data"`
-	Pagination Pagination `json:"pagination"`
-}
-
-func getPage(u string) (LBTCResponse, error) {
-	resp, err := http.Get(u)
+// getPage fetches a page of ads from localbitcoin's API.
+func (m *Monitor) getPage(u string) (LBTCResponse, error) {
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return LBTCResponse{}, err
+	}
+	resp, err := m.HTTPClient.Do(req)
 	if err != nil {
 		return LBTCResponse{}, err
 	}
@@ -87,37 +70,19 @@ func getPage(u string) (LBTCResponse, error) {
 	return data, nil
 }
 
-func containsKeywords(s string, kws []string) bool {
-	for _, kw := range kws {
-		if strings.Contains(strings.ToLower(s), strings.ToLower(kw)) {
-			return true
-		}
-	}
-	return false
-}
-
-func filterBuyers(ads []BuyAd, kws []string) []BuyAd {
-	fb := []BuyAd{}
-	for _, ad := range ads {
-		msgContainsKws := containsKeywords(ad.Data.Message, kws)
-		bankContainsKws := containsKeywords(ad.Data.BankName, kws)
-		if msgContainsKws || bankContainsKws {
-			fb = append(fb, ad)
-		}
-	}
-	return fb
-}
-
-func gatherBuyers(c string, keywords []string) error {
+// GatherBuyers filters the available buyers, leaving the ones that:
+//    a) Match the currency we're interested in
+//    b) Contain some of the keywords we;re looking for, either in their description or bank name
+func (m *Monitor) GatherBuyers(c string, keywords []string) ([]Ad, error) {
 	baseURL := fmt.Sprintf("https://localbitcoins.com/sell-bitcoins-online/%s/.json", c)
-	buyers := []BuyAd{}
+	buyers := []Ad{}
 	var err error
 	var page LBTCResponse
 	page.Pagination.Next = baseURL
 	for {
-		page, err = getPage(page.Pagination.Next)
+		page, err = m.getPage(page.Pagination.Next)
 		if err != nil {
-			return err
+			return []Ad{}, err
 		}
 		buyers = append(buyers, filterBuyers(page.Data.Ads, keywords)...)
 		if page.Pagination.Next == "" {
@@ -127,8 +92,14 @@ func gatherBuyers(c string, keywords []string) error {
 
 	jsonBuyers, err := json.MarshalIndent(buyers, "", "    ")
 	if err != nil {
-		return err
+		return []Ad{}, err
 	}
+	fmt.Println(fmt.Sprintf("Buyers Found: %d", len(buyers)))
 	fmt.Println(string(jsonBuyers))
-	return nil
+	return buyers, err
+}
+
+// NewMonitor creates a new Monitor
+func NewMonitor() Monitor {
+	return Monitor{HTTPClient: &http.Client{}}
 }
