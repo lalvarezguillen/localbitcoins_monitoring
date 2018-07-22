@@ -4,12 +4,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
 	"strings"
+
+	"github.com/urfave/cli"
 )
 
 func main() {
-	gatherBuyers("VEF", []string{"bvc", "venezolano"})
+	app := cli.NewApp()
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "currency",
+			Usage: "The currency you want to sell your BTCs for.",
+		},
+	}
+	app.Action = func(c *cli.Context) error {
+		currency := c.String("currency")
+		if currency == "" {
+			panic("--currency is a required argument")
+		}
+		var keywords []string
+		for _, kw := range c.Args() {
+			keywords = append(keywords, strings.ToLower(kw))
+		}
+		fmt.Println("Currency: " + currency)
+		fmt.Println(fmt.Sprintf("Keywords: %v", keywords))
+		return gatherBuyers(currency, keywords)
+	}
+
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
+	}
 }
 
 type AdData struct {
